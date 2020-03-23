@@ -1,23 +1,25 @@
-window.ERROR_LIST = [];
+// const ERROR_LIST: [] = [];
 
-window.ADD_DATA = {};
+// const ADD_DATA: object = {};
 
-window.Performance.addError = (err: IError) => {
-  err = {
-    method: 'GET',
-    n: 'js',
-    message: err.message,
-    data: {
-      col: err.col,
-      line: err.line,
-      resUrl: err.resUrl
-    }
-  }
-  window.ERROR_LIST.push(err)
-}
-window.Performance.addData = (fn: Function) => {
-  fn && fn(window.ADD_DATA)
-}
+// window.Performance = Performance;
+
+// Performance.addError = function (err: IError) {
+//   err = {
+//     method: 'GET',
+//     n: 'js',
+//     message: err.message,
+//     data: {
+//       col: err.col,
+//       line: err.line,
+//       resUrl: err.resUrl
+//     }
+//   }
+//   ERROR_LIST.push(err)
+// }
+// Performance.addData = function (fn: Function) {
+//   fn && fn(ADD_DATA)
+// }
 
 class PerformanceIext implements Performance {
   navigation!: PerformanceNavigation;
@@ -72,6 +74,13 @@ class PerformanceIext implements Performance {
   }
 }
 
+const PERFORMANCE_REPORT: number = 1;
+const REQUEST_REPORT: number = 2;
+const ERROR_REPORT: number = 3;
+
+const LAST_TIMESTAMP = new Date().setHours(23, 59, 59, 999);
+const NOT_AJAX_ARR = ['fetch', 'xmlhttprequest'];
+
 /**
  * @desc new Monitor(opts, fn)
  */
@@ -80,11 +89,11 @@ export default class Monitor extends PerformanceIext {
   fn: Function;
   initConf: {
     // 资源列表
-    resourceList: never[];
+    resourceList: object[];
     // 页面信息
     performance: {};
     // 错误列表
-    errorList: never[];
+    errorList: object[];
     // referrer 来源
     lastURI: string;
     // 当前页面
@@ -111,7 +120,7 @@ export default class Monitor extends PerformanceIext {
   private getOptions() {
     let opts = Object.assign({
       // 上报地址
-      domain: 'http://localhost/api',
+      domain: 'XXXX',
       // 脚本延迟上报时间
       outTime: 300,
       // ajax请求时需要过滤的url信息
@@ -134,10 +143,10 @@ export default class Monitor extends PerformanceIext {
       msg: '',
       data: {}
     }
-  }
-
-  private get config() {
-    return this.initConf;
+    return {
+      opts,
+      initError
+    }
   }
 
   private get params() {
@@ -176,6 +185,40 @@ export default class Monitor extends PerformanceIext {
   }
   // 页面资源信息
   public performanceSource() {
+    if (!window?.performance?.getEntries) return false;
+    const resources = window.performance.getEntriesByType('resource');
+    if (!resources || !resources?.length) return [];
+    const {
+      isAjax,
+      isResource
+    } = this.params.opts;
+    this.initConf = {
+      ...this.initConf,
+      resourceList: resources.map(item => {
+        if (!isAjax && (NOT_AJAX_ARR.includes(item.initiatorType))) return {};
+        if (!isResource && (item.initiatorType != 'xmlhttprequest' && item.initiatorType !== 'fetchrequest')) return {};
+        const midData = {
+          name: item.name,
+          type: item.entryType,
+          initiatorType: item.initiatorType,
+          nextHopPortocol: item.nextHopProtocol,
+          duration: item.duration.toFixed(2) || 0,
+          decodedBodySize: item.decodedBodySize || 0,
+        }
+        return midData;
+      })
+    }
+  }
 
+  // 上报
+  public reportData(reportType?: number) {
+    const {
+      isPage,
+      outTime
+    } = this.params.opts;
+    setTimeout(() => {
+      if (isPage) this.performancePage()
+      console.log(this.initConf);
+    }, outTime)
   }
 }

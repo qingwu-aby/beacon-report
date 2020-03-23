@@ -4,7 +4,7 @@ interface IExt extends Performance {
 }
 declare interface Window {
   ERROR_LIST: IError[]
-  ADD_DATA: {}
+  ADD_DATA: Object
   Performance: IExt
 }
 
